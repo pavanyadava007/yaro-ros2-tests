@@ -5,6 +5,9 @@ C++17 / ROS 2 Jazzy package that loads the public URDF descriptions of the YARO 
 the published data sheet, and a joint limit monitor node. Everything builds and runs in Docker,
 and every number in [docs/RESULTS.md](docs/RESULTS.md) is generated from `results/*.json`.
 
+**Live page:** https://huggingface.co/spaces/pavanyadava07/yaro-ros2-tests (try the limit monitor in the browser; its JavaScript
+kinematics is checked against the C++ library in CI, worst difference 5e-12 m over 250 configurations).
+
 This is an independent project. It is not affiliated with or endorsed by YardStick Robotics or Rheinmetall.
 No real robot was used; all results come from the URDF files and the public data sheet.
 
@@ -16,6 +19,7 @@ No real robot was used; all results come from the URDF files and the public data
 | `joint_limit_monitor` (ROS 2 node, rclcpp) | Subscribes to `/joint_states`, publishes `/diagnostics` per joint (OK / WARN / ERROR), `~/limits_ok` and `~/tip_pose`; finite-difference velocities when a message has none |
 | `yaro_audit` | Audit + data sheet comparison + sampled reach for all models, as JSON |
 | `yaro_bench` | FK and Jacobian timing against KDL |
+| `yaro_fk` | Tip position for one joint configuration (used to check the web page's kinematics) |
 | tests | GoogleTest suites (kinematics, limits, audit, data sheet, KDL cross-check) and a launch_testing integration test that talks to the running node over DDS |
 
 ## Results (from docs/RESULTS.md)
@@ -55,7 +59,8 @@ ros2_ws/src/yaro_check/
   test/            GoogleTest suites, launch_testing test
   launch/          monitor.launch.py
 docker/Dockerfile  ros:jazzy-ros-base, nothing extra installed
-scripts/           test result collector, report generator
+scripts/           test result collector, report generator, Space builder and its FK check
+site/              static Hugging Face Space (index.html, fk.js, data.json)
 results/           raw JSON behind docs/RESULTS.md
 ```
 

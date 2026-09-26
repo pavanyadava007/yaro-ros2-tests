@@ -42,10 +42,13 @@ target_link_libraries(joint_limit_monitor yaro_check_core rclcpp::rclcpp
 add_executable(yaro_audit src/audit_cli.cpp)
 target_link_libraries(yaro_audit yaro_check_core)
 
+add_executable(yaro_fk src/fk_cli.cpp)
+target_link_libraries(yaro_fk yaro_check_core)
+
 add_executable(yaro_bench src/bench_cli.cpp)
 target_link_libraries(yaro_bench yaro_check_core kdl_parser::kdl_parser orocos-kdl)
 
-install(TARGETS yaro_check_core joint_limit_monitor yaro_audit yaro_bench
+install(TARGETS yaro_check_core joint_limit_monitor yaro_audit yaro_fk yaro_bench
   ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})

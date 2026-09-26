@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YARO URDF Checks</title>
+<style>
+:root { --bg:#fbfbfa; --fg:#1d2330; --muted:#5d6574; --line:#dfe2e7; --card:#ffffff; --accent:#2a5db0; --ok:#1f7a4d; --warn:#9a6700; --err:#b42318; --errbg:#fdecea; --warnbg:#fff4d6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#12151b; --fg:#e6e9ef; --muted:#9aa3b2; --line:#2b313c; --card:#191d25; --accent:#7ea6ec; --ok:#5cc494; --warn:#e3b341; --err:#f47067; --errbg:#3a1d1d; --warnbg:#3a3014; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width:1000px; margin:0 auto; padding:28px 16px 60px; }
+h1 { font-size:28px; margin:0 0 4px; } h2 { font-size:19px; margin:34px 0 10px; }
+p.lead { color:var(--muted); margin:0 0 18px; max-width:780px; }
+a { color:var(--accent); }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin:14px 0; }
+.kpi b { display:block; font-size:22px; } .kpi span { color:var(--muted); font-size:13px; }
+table { border-collapse:collapse; width:100%; font-size:13.5px; }
+th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+th { color:var(--muted); font-weight:600; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+.scroll { overflow-x:auto; }
+.controls { display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+select { padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); font:inherit; }
+input[type=range] { width:100%; min-width:110px; accent-color:var(--accent); }
+.lvl { font-weight:600; border-radius:6px; padding:2px 8px; font-size:12.5px; white-space:nowrap; }
+.l0 { color:var(--ok); } .l1 { color:var(--warn); background:var(--warnbg); } .l2 { color:var(--err); background:var(--errbg); }
+.diff { color:var(--err); font-weight:600; }
+.muted { color:var(--muted); font-size:13px; }
+.tip { font-variant-numeric:tabular-nums; font-size:15px; margin-top:10px; }
+</style>
+</head>
+<body>
+<main>
+<h1>YARO URDF checks</h1>
+<p class="lead">A C++17 / ROS 2 Jazzy package that loads the five public YARO cobot URDFs from YardStick Robotics and tests them: forward kinematics checked against KDL, a model audit, a comparison with the published data sheet and a joint limit monitor node, with GoogleTest and launch_testing suites in Docker. Code and full results: <a href="https://github.com/pavanyadava007/yaro-ros2-tests">github.com/pavanyadava007/yaro-ros2-tests</a>. Independent project, not affiliated with YardStick Robotics or Rheinmetall; no real robot was used.</p>
+
+<div class="kpis" id="kpis"></div>
+
+<h2>Try the limit monitor</h2>
+<div class="card">
+  <div class="controls">
+    <label>Model <select id="model"></select></label>
+    <label>Velocity scale <select id="vscale"><option value="1">1.0 (URDF limit)</option><option value="0.25">0.25 (reduced speed)</option></select></label>
+    <span class="muted">Same rules as the C++ node: ERROR outside the URDF range or above the speed limit, WARN within 0.05 rad of a limit.</span>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>joint</th><th>position (deg)</th><th class="num"></th><th>speed (deg/s)</th><th class="num"></th><th>URDF monitor</th><th>vs data sheet</th></tr></thead>
+    <tbody id="joints"></tbody>
+  </table></div>
+  <div class="tip" id="tip"></div>
+  <p class="muted">The last column applies the data sheet's range and maximum speed instead of the URDF's. Where the two sources disagree, the same state can pass one and fail the other.</p>
+</div>
+
+<h2>Tests</h2>
+<div class="card scroll"><table id="tests"></table></div>
+
+<h2>Model audit</h2>
+<div class="card scroll"><table id="audit"></table>
+<p class="muted">Reach = largest horizontal distance of ee_frame from the A1 axis over 200,000 random configurations inside the URDF limits (a lower bound). Warnings on every model: 14 mesh paths are relative (<code>../meshes/stl/...</code>) rather than package:// or file:// URIs, which ROS resource_retriever rejects; and the root link carries an inertia that KDL ignores.</p></div>
+
+<h2>URDF limits vs data sheet</h2>
+<div class="card scroll"><table id="limits"></table>
+<p class="muted" id="limits-note"></p></div>
+
+<h2>Kinematics speed</h2>
+<div class="card scroll"><table id="bench"></table><p class="muted" id="bench-note"></p></div>
+</main>
+
+<script type="module">
+import { forward, checkJoint } from "./fk.js";
+
+const data = await (await fetch("data.json")).json();
+const deg = (r) => r * 180 / Math.PI, rad = (d) => d * Math.PI / 180;
+const LV = ["OK", "WARN", "ERROR"];
+const badge = (l) => `<span class="lvl l${l}">${LV[l]}</span>`;
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+
+// KPIs
+const kdl = data.tests.suites.find((s) => s.file.startsWith("test_kdl"));
+const worst = Math.max(...Object.values(kdl.properties).flatMap((p) => [p.worst_position_error_m, p.worst_rotation_error, p.worst_jacobian_error]));
+const comps = data.audit.models.flatMap((m) => m.comparisons);
+const kpi = (v, t) => `<div class="card kpi"><b>${v}</b><span>${t}</span></div>`;
+document.getElementById("kpis").innerHTML =
+  kpi(`${data.tests.total} / ${data.tests.failures}`, "test cases / failures (GoogleTest + launch_testing)") +
+  kpi(`${worst.toExponential(1)}`, "worst difference to KDL over 5,000 configurations") +
+  kpi(`${comps.filter((c) => !c.matches).length} of ${comps.length}`, "URDF joint range / speed values that differ from the data sheet") +
+  kpi(`${(data.bench.jacobian_kdl_ns / data.bench.jacobian_ns).toFixed(1)}x`, "Jacobian speed vs KDL, one CPU core");
+
+// Monitor
+const modelSel = document.getElementById("model"), vscale = document.getElementById("vscale");
+for (const m of Object.keys(data.models)) modelSel.add(new Option(m.replace("yaro_", "YARO-"), m));
+modelSel.value = "yaro_1105";
+const state = {};
+
+function build() {
+  const m = data.models[modelSel.value];
+  const joints = m.joints.filter((j) => j.type === "revolute");
+  state.q = joints.map(() => 0);
+  state.v = joints.map(() => 0);
+  document.getElementById("joints").innerHTML = joints.map((j, i) => {
+    const pmax = Math.ceil(deg(j.upper) + 20), vmax = Math.ceil(deg(j.velocity) * 1.3);
+    return `<tr><td>${esc(j.name)}</td>
+      <td><input type="range" data-k="q" data-i="${i}" min="${-pmax}" max="${pmax}" step="1" value="0" aria-label="${esc(j.name)} position"></td><td class="num" id="qv${i}"></td>
+      <td><input type="range" data-k="v" data-i="${i}" min="0" max="${vmax}" step="1" value="0" aria-label="${esc(j.name)} speed"></td><td class="num" id="vv${i}"></td>
+      <td id="s${i}"></td><td id="d${i}"></td></tr>`;
+  }).join("");
+  document.querySelectorAll("#joints input").forEach((el) => el.addEventListener("input", (e) => {
+    state[e.target.dataset.k][+e.target.dataset.i] = rad(+e.target.value);
+    update();
+  }));
+  update();
+}
+
+function update() {
+  const m = data.models[modelSel.value];
+  const joints = m.joints.filter((j) => j.type === "revolute");
+  const scale = +vscale.value;
+  joints.forEach((j, i) => {
+    document.getElementById(`qv${i}`).textContent = deg(state.q[i]).toFixed(0);
+    document.getElementById(`vv${i}`).textContent = deg(state.v[i]).toFixed(0);
+    const s = checkJoint(j, state.q[i], state.v[i], 0.05, scale);
+    document.getElementById(`s${i}`).innerHTML = `${badge(s.level)} <span class="muted">${s.message}</span>`;
+    const ds = m.comparisons ? m.comparisons.filter((c) => c.joint === j.name) : [];
+    const r = ds.find((c) => c.quantity === "range"), sp = ds.find((c) => c.quantity === "speed");
+    if (r && sp) {
+      const dsj = { lower: -rad(r.datasheet), upper: rad(r.datasheet), velocity: rad(sp.datasheet) };
+      const d = checkJoint(dsj, state.q[i], state.v[i], 0.05, scale);
+      document.getElementById(`d${i}`).innerHTML = badge(d.level) + (d.level !== s.level ? ' <span class="diff">differs</span>' : "");
+    }
+  });
+  const p = forward(m, state.q);
+  document.getElementById("tip").innerHTML = `Tip (ee_frame) in link_0: x ${p[0].toFixed(3)} m, y ${p[1].toFixed(3)} m, z ${p[2].toFixed(3)} m`;
+}
+modelSel.addEventListener("change", build);
+vscale.addEventListener("change", update);
+build();
+
+// Tables
+document.getElementById("tests").innerHTML = "<tr><th>suite</th><th class='num'>cases</th><th class='num'>failures</th></tr>" +
+  data.tests.suites.map((s) => `<tr><td>${esc(s.file.replace(/\.(gtest|xunit)\.xml$/, ""))}</td><td class="num">${s.tests}</td><td class="num">${s.failures}</td></tr>`).join("");
+
+document.getElementById("audit").innerHTML = "<tr><th>model</th><th class='num'>URDF mass (kg)</th><th class='num'>data sheet weight (kg)</th><th class='num'>sampled reach (mm)</th><th class='num'>data sheet reach (mm)</th><th class='num'>errors</th><th class='num'>warnings</th></tr>" +
+  data.audit.models.map((m) => `<tr><td>${m.model}</td><td class="num">${m.total_mass_kg.toFixed(2)}</td><td class="num">${m.datasheet.weight_kg}</td><td class="num">${m.sampled_horizontal_reach_mm.toFixed(0)}</td><td class="num">${m.datasheet.reach_mm}</td><td class="num">${m.errors}</td><td class="num">${m.warnings}</td></tr>`).join("");
+
+const head = ["model", ...[1, 2, 3, 4, 5, 6].map((i) => `A${i} range`), ...[1, 2, 3, 4, 5, 6].map((i) => `A${i} speed`)];
+document.getElementById("limits").innerHTML = "<tr>" + head.map((h) => `<th>${h}</th>`).join("") + "</tr>" +
+  data.audit.models.map((m) => {
+    const cell = (q, i) => {
+      const c = m.comparisons.find((x) => x.quantity === q && x.joint === `joint_${i}`);
+      const t = `${c.urdf.toFixed(0)} / ${c.datasheet.toFixed(0)}`;
+      return `<td class="num">${c.matches ? t : `<span class="diff">${t}</span>`}</td>`;
+    };
+    return `<tr><td>${m.model}</td>${[1, 2, 3, 4, 5, 6].map((i) => cell("range", i)).join("")}${[1, 2, 3, 4, 5, 6].map((i) => cell("speed", i)).join("")}</tr>`;
+  }).join("");
+document.getElementById("limits-note").textContent = "URDF / data sheet: half range in deg and maximum speed in deg/s; differing values in colour. Which source a controller should enforce is for the robot's owners to decide.";
+
+const b = data.bench;
+document.getElementById("bench").innerHTML = "<tr><th></th><th class='num'>yaro_check (ns/call)</th><th class='num'>KDL (ns/call)</th><th class='num'>speed-up</th></tr>" +
+  `<tr><td>forward kinematics</td><td class="num">${b.fk_ns.toFixed(0)}</td><td class="num">${b.fk_kdl_ns.toFixed(0)}</td><td class="num">${(b.fk_kdl_ns / b.fk_ns).toFixed(1)}x</td></tr>` +
+  `<tr><td>Jacobian</td><td class="num">${b.jacobian_ns.toFixed(0)}</td><td class="num">${b.jacobian_kdl_ns.toFixed(0)}</td><td class="num">${(b.jacobian_kdl_ns / b.jacobian_ns).toFixed(1)}x</td></tr>`;
+document.getElementById("bench-note").textContent = `YARO-1105, single thread, median of ${b.repeats} x ${b.calls.toLocaleString("en")} calls, ${data.cpu} (Docker).`;
+</script>
+</body>
+</html>

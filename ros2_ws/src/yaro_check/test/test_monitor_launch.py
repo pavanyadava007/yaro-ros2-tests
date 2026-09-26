@@ -92,7 +92,7 @@ class TestJointLimitMonitor(unittest.TestCase):
         self.assertTrue(self.pose, "no tip pose published")
         p = self.pose[-1].pose.position
         self.assertEqual(self.pose[-1].header.frame_id, "link_0")
-        # Home pose of the YARO-1105 URDF: arm stretched upward, tip about 1.37 m above the base.
+        # Home pose of the YARO-1105 URDF: arm stretched upward, tip 1.41 m above the base.
         self.assertAlmostEqual(math.hypot(p.x, p.y), 0.0, delta=0.2)
         self.assertGreater(p.z, 1.0)
 

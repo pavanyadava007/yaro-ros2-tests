@@ -3,7 +3,7 @@ RUN = docker run --rm --network none -v $(CURDIR)/results:/ws/results -v $(CURDI
 SETUP = . /ws/ros2_ws/install/setup.sh && cd /ws/ros2_ws
 MODELS = /ws/models/yaro_0808 /ws/models/yaro_1105 /ws/models/yaro_1115 /ws/models/yaro_1310 /ws/models/yaro_1608
 
-.PHONY: image test audit bench report all
+.PHONY: image test audit bench report all space
 image:
 	docker build -f docker/Dockerfile -t $(IMAGE) .
 
@@ -22,3 +22,8 @@ report:
 	python3 scripts/make_report.py
 
 all: test audit bench report
+
+# Static Hugging Face Space in site/; the JavaScript FK is checked against the C++ library first.
+space:
+	python3 scripts/build_space.py
+	node scripts/check_space_fk.mjs

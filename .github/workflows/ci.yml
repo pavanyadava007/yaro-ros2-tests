@@ -17,3 +17,5 @@ jobs:
           docker run --rm --network none yaro-ros2-tests:jazzy bash -c \
             '. /ws/ros2_ws/install/setup.sh && ros2 run yaro_check yaro_audit --datasheet /ws/models/datasheet.txt /ws/models/yaro_0808 /ws/models/yaro_1105 /ws/models/yaro_1115 /ws/models/yaro_1310 /ws/models/yaro_1608' > audit_ci.json
           python3 -c "import json; a=json.load(open('audit_ci.json')); b=json.load(open('results/audit.json')); assert a==b, 'audit output changed'; print('audit identical')"
+      - name: Space JavaScript FK matches the C++ library
+        run: python3 scripts/build_space.py && node scripts/check_space_fk.mjs
