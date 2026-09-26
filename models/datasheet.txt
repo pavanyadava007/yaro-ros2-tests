@@ -1,0 +1,9 @@
+# YARO Cobot data sheet, as published by YardStick Robotics:
+# https://yardstick-robotics.com/wp-content/uploads/2026/07/YardStick-Robotics-YARO-Cobot-Data-Sheet.pdf (retrieved 2026-09-26)
+# YARO-0820 is on the data sheet but has no public URDF, so it is not listed here.
+# columns: model payload_kg reach_mm weight_kg  range_deg A1..A6 (+/-)  max_speed_deg_s A1..A6
+yaro_1105  5 1100 28   360 360 165 360 360 360   228 228 270 420 420 420
+yaro_0808  8  800 27   360 360 165 360 360 360   228 228 270 420 420 420
+yaro_1608  8 1600 44   360 360 165 360 360 360   162 162 288 270 276 276
+yaro_1310 10 1300 45   360 360 165 360 360 360   162 162 228 270 276 276
+yaro_1115 15 1100 44   360 360 165 360 360 360   162 162 228 270 276 276

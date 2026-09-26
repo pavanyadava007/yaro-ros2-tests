@@ -1,0 +1,68 @@
+{
+  "suites": [
+    {
+      "file": "test_audit.gtest.xml",
+      "tests": 11,
+      "failures": 0,
+      "properties": {}
+    },
+    {
+      "file": "test_datasheet.gtest.xml",
+      "tests": 5,
+      "failures": 0,
+      "properties": {}
+    },
+    {
+      "file": "test_kdl_crosscheck.gtest.xml",
+      "tests": 5,
+      "failures": 0,
+      "properties": {
+        "ForwardKinematicsAndJacobianAgree/0": {
+          "worst_position_error_m": 4.440892e-16,
+          "worst_rotation_error": 8.881784e-16,
+          "worst_jacobian_error": 6.661338e-16
+        },
+        "ForwardKinematicsAndJacobianAgree/1": {
+          "worst_position_error_m": 2.220446e-16,
+          "worst_rotation_error": 4.440892e-16,
+          "worst_jacobian_error": 4.440892e-16
+        },
+        "ForwardKinematicsAndJacobianAgree/2": {
+          "worst_position_error_m": 4.440892e-16,
+          "worst_rotation_error": 8.881784e-16,
+          "worst_jacobian_error": 6.661338e-16
+        },
+        "ForwardKinematicsAndJacobianAgree/3": {
+          "worst_position_error_m": 6.661338e-16,
+          "worst_rotation_error": 8.881784e-16,
+          "worst_jacobian_error": 8.881784e-16
+        },
+        "ForwardKinematicsAndJacobianAgree/4": {
+          "worst_position_error_m": 4.440892e-16,
+          "worst_rotation_error": 4.440892e-16,
+          "worst_jacobian_error": 6.661338e-16
+        }
+      }
+    },
+    {
+      "file": "test_kinematics.gtest.xml",
+      "tests": 14,
+      "failures": 0,
+      "properties": {}
+    },
+    {
+      "file": "test_limits.gtest.xml",
+      "tests": 9,
+      "failures": 0,
+      "properties": {}
+    },
+    {
+      "file": "test_test_monitor_launch.py.xunit.xml",
+      "tests": 6,
+      "failures": 0,
+      "properties": {}
+    }
+  ],
+  "total": 50,
+  "failures": 0
+}

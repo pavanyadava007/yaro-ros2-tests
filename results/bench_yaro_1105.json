@@ -1,0 +1,1 @@
+{"model": "/ws/models/yaro_1105", "calls": 400000, "repeats": 7, "fk_ns": 394.799, "fk_kdl_ns": 543.017, "jacobian_ns": 559.334, "jacobian_kdl_ns": 1149.47}

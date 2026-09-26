@@ -1,0 +1,19 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (colcon, -Werror) in ros:jazzy-ros-base
+        run: docker build -f docker/Dockerfile -t yaro-ros2-tests:jazzy .
+      - name: GoogleTest + launch_testing
+        run: |
+          mkdir -p results
+          docker run --rm --network none -v $PWD/results:/ws/results -v $PWD/scripts:/ws/scripts:ro yaro-ros2-tests:jazzy \
+            bash -c '. /ws/ros2_ws/install/setup.sh && cd /ws/ros2_ws && colcon test --event-handlers console_direct+ ; colcon test-result --verbose ; python3 /ws/scripts/collect_tests.py /ws/results/tests.json'
+      - name: Audit runs and matches the committed results
+        run: |
+          docker run --rm --network none yaro-ros2-tests:jazzy bash -c \
+            '. /ws/ros2_ws/install/setup.sh && ros2 run yaro_check yaro_audit --datasheet /ws/models/datasheet.txt /ws/models/yaro_0808 /ws/models/yaro_1105 /ws/models/yaro_1115 /ws/models/yaro_1310 /ws/models/yaro_1608' > audit_ci.json
+          python3 -c "import json; a=json.load(open('audit_ci.json')); b=json.load(open('results/audit.json')); assert a==b, 'audit output changed'; print('audit identical')"
